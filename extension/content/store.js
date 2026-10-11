@@ -2,10 +2,12 @@
 // notes file through the background worker. Nothing is saved before the file was read once.
 'use strict';
 
+const pageUrl = () => location.href.split('#')[0];
+
 const dn = {
   cfg: Object.assign({ saveDelay: 400, retryDelay: 5000 }, window.DECISION_NOTES_CONFIG),
-  url: location.href.split('#')[0], // the address the notes were loaded for
-  backupKey: 'decision-notes:' + location.href.split('#')[0],
+  url: pageUrl(), // the address the notes were loaded for
+  backupKey: 'decision-notes:' + pageUrl(),
   notes: new Map(), // id -> { heading, text, place }
   active: false, // the layer shows only on pages with notes, or once the side panel starts a session here
   loaded: false, // no save before the file was read once, or we would overwrite it
@@ -78,7 +80,7 @@ function scheduleSave(delay) {
 
 async function save() {
   if (!dn.loaded) return; // load() pushes the backup once the file was read
-  if (location.href.split('#')[0] !== dn.url) return addressChanged();
+  if (pageUrl() !== dn.url) return addressChanged();
   if (dn.saving) {
     dn.again = true;
     return;
@@ -139,7 +141,12 @@ function unsavedNotes(backup) {
 }
 
 function applyNotes(list) {
-  dn.notes = new Map(list.map((n) => [n.id, { heading: n.heading, text: n.text, place: n.place ?? null }]));
+  const next = new Map(list.map((n) => [n.id, { heading: n.heading, text: n.text, place: n.place ?? null }]));
+  // a card opened but not typed in yet is in neither the file nor the backup; without it, its place is lost
+  dn.notes.forEach((note, id) => {
+    if (!note.text.trim() && !next.has(id)) next.set(id, note);
+  });
+  dn.notes = next;
   if (dn.active) renderCards();
 }
 
@@ -150,6 +157,7 @@ async function load() {
     const saved = dn.saved;
     const reply = await ask({ type: 'load' });
     if (dn.saved !== saved) return load(); // the file was read before a save that finished meanwhile
+    if (pageUrl() !== dn.url) return addressChanged(); // the worker read the new address's file
     // read the backup only now, so keystrokes typed while the request was in flight are in it
     const unsaved = unsavedNotes(await readBackup());
     Object.assign(dn, { version: reply.version, folder: reply.folder, loaded: true });

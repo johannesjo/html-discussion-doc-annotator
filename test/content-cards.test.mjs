@@ -218,3 +218,60 @@ test('a long label is cut between characters, never inside an emoji', async () =
   await until(() => ext.puts.length === 1);
   assert.equal(ext.puts[0][0].heading, 'a'.repeat(79) + '😀');
 });
+
+test('a click on the bar without moving leaves the note where it is attached', async () => {
+  const ext = fakeExtension([{ id: 'n-a', heading: 'Weekly insights', text: 'stays', place: { at: 'h1:1', dx: 0, dy: 30 } }]);
+  const window = openPage(ext);
+  await ready(window);
+  const [card] = cardsOf(window);
+  const p = window.document.querySelector('p'); // what lies under the card
+  const mouse = (type) => new window.MouseEvent(type, { clientX: 20, clientY: 40, button: 0, bubbles: true });
+  window.document.elementFromPoint = () => (card.classList.contains('dn-dragging') ? p : card);
+  card.querySelector('.dn-bar').dispatchEvent(mouse('mousedown'));
+  window.document.dispatchEvent(mouse('mouseup'));
+  await wait(50);
+  assert.equal(ext.puts.length, 0);
+  assert.equal(card.classList.contains('dn-dragging'), false);
+});
+
+test('a note on an image or a drawing is attached to it, not to its paragraph', async () => {
+  const ext = fakeExtension();
+  const doc = DOC.replace('b,span,a{display:inline}', 'b,span,a,img,svg,rect{display:inline}')
+    .replace('<h1>', '<p>See <img src="chart.png" alt="chart"> and <svg><rect width="5" height="5"/></svg></p><h1>');
+  const window = openPage(ext, { doc });
+  ext.activate();
+  await ready(window);
+  for (const el of [window.document.querySelector('img'), window.document.querySelector('rect')]) {
+    pressN(window, el);
+    type(window, cardsOf(window).at(-1).querySelector('textarea'), 'on ' + el.tagName);
+  }
+  await until(() => ext.puts.length >= 1 && ext.puts.at(-1).length === 2);
+  assert.deepEqual(ext.puts.at(-1).map((n) => n.place.at).sort(), ['p:1/img:1', 'p:1/svg:1']);
+});
+
+test('grabbing the bar of a new card keeps the caret in it, so an empty card survives being dragged', async () => {
+  const ext = fakeExtension();
+  const window = openPage(ext);
+  ext.activate();
+  await ready(window);
+  pressN(window, window.document.querySelector('h1'));
+  const [card] = cardsOf(window);
+  const area = card.querySelector('textarea');
+  drag(window, card, [12, 12], [200, 300], null);
+  assert.equal(window.document.activeElement, area);
+  assert.equal(cardsOf(window).length, 1);
+});
+
+test('a shape is attached to its drawing, but HTML inside the drawing to its own block', async () => {
+  const ext = fakeExtension();
+  const doc = DOC.replace('<h1>', '<svg><rect width="5" height="5"/><foreignObject><div>In the drawing</div></foreignObject></svg><h1>');
+  const window = openPage(ext, { doc });
+  ext.activate();
+  await ready(window);
+  for (const el of [window.document.querySelector('rect'), window.document.querySelector('foreignObject div')]) {
+    pressN(window, el);
+    type(window, cardsOf(window).at(-1).querySelector('textarea'), 'on ' + el.tagName);
+  }
+  await until(() => ext.puts.length >= 1 && ext.puts.at(-1).length === 2);
+  assert.deepEqual(ext.puts.at(-1).map((n) => n.place.at).sort(), ['svg:1', 'svg:1/foreignobject:1/div:1']);
+});

@@ -202,3 +202,36 @@ test('a file name taken by two other docs says so instead of a generic retry', a
   await until(() => status(window).dataset.state === 'error');
   assert.match(status(window).textContent, /other docs/i);
 });
+
+test('after the page changes its address without reloading, the notes of the new address are not loaded', async () => {
+  const ext = fakeExtension([{ id: 'n-a', heading: 'Weekly insights', text: 'weekly note', place: H1 }]);
+  const window = openPage(ext);
+  await until(() => status(window).dataset.state === 'ok');
+  window.history.pushState(null, '', '/other.html');
+  ext.notes = [{ id: 'n-b', heading: 'Budget | Anna', text: 'other page note', place: ROW }]; // the worker reads /other's file
+  ext.activate(); // the side panel wakes the page after the address change
+  await until(() => status(window).dataset.state === 'error');
+  assert.match(status(window).textContent, /address changed/);
+  assert.deepEqual(cardsOf(window).map(textOf), ['weekly note']);
+  window.history.pushState(null, '', '/weekly.html');
+  type(window, cardsOf(window)[0].querySelector('textarea'), 'weekly note, edited');
+  await until(() => ext.puts.length === 1);
+  assert.deepEqual(ext.puts[0].map((n) => n.text), ['weekly note, edited']);
+});
+
+test('a new empty card keeps its place when a load lands while it is open', async () => {
+  const ext = fakeExtension();
+  const window = openPage(ext);
+  ext.activate();
+  await until(() => status(window).dataset.state === 'ok');
+  let release;
+  ext.hold = new Promise((resolve) => (release = resolve));
+  ext.activate(); // a second load, held open
+  pressN(window, window.document.querySelector('h1'), 30, 40);
+  release();
+  await wait(30);
+  type(window, cardsOf(window)[0].querySelector('textarea'), 'typed after the load');
+  await until(() => ext.puts.length === 1);
+  assert.equal(ext.puts[0][0].heading, 'Weekly insights');
+  assert.deepEqual(ext.puts[0][0].place, { at: 'h1:1', dx: 30, dy: 40 });
+});

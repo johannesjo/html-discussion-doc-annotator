@@ -166,22 +166,24 @@ function startDrag(event, id) {
   const card = cards.get(id);
   const rect = card.getBoundingClientRect();
   const grab = { x: event.clientX - rect.left, y: event.clientY - rect.top };
-  layer.append(card); // out of the tray, if it was there
+  if (card.parentElement !== layer) layer.append(card); // out of the tray; moving it within the layer would blur its text
   card.classList.remove('dn-lost'); // a lost card is laid out by the tray and would not follow the pointer
   card.classList.add('dn-dragging'); // lets the pointer see the page below the card
   const cornerAt = (e) => ({ x: e.clientX - grab.x + window.scrollX, y: e.clientY - grab.y + window.scrollY });
+  let dragged = false; // a click on the bar is not a drop: it would attach the note to what lies below
   const move = (e) => {
+    dragged ||= Math.abs(e.clientX - event.clientX) + Math.abs(e.clientY - event.clientY) > 3;
+    if (!dragged) return;
     moveCard(card, cornerAt(e));
     showTarget(blockAt(e.clientX, e.clientY));
   };
   const drop = (e) => {
     document.removeEventListener('mousemove', move);
     document.removeEventListener('mouseup', drop);
-    const onto = blockAt(e.clientX, e.clientY); // before the card is solid again and hides the page
+    const onto = dragged && blockAt(e.clientX, e.clientY); // before the card is solid again and hides the page
     card.classList.remove('dn-dragging');
     showTarget(null);
-    const note = dn.notes.get(id);
-    updateNote(id, placeFor(onto, cornerAt(e), note.place && note.place.min));
+    if (dragged) updateNote(id, placeFor(onto, cornerAt(e), dn.notes.get(id).place?.min));
     layoutCards();
   };
   moveCard(card, { x: rect.left + window.scrollX, y: rect.top + window.scrollY });

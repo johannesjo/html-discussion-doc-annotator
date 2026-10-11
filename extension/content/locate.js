@@ -55,11 +55,20 @@ function locate(at, label) {
   return twins[0] ?? null;
 }
 
-/** The element under a viewport point, lifted from inline bits (<b>, <a>) to their block; null on the bare page. */
+// Inline, but things to note on in their own right
+const PICTURES = 'img, svg, video, canvas, iframe';
+
+/**
+ * The element under a viewport point, lifted from inline bits (<b>, <a>) to their block and from a
+ * shape to its whole drawing; pictures stay themselves. Null on the bare page.
+ */
 function blockAt(x, y) {
   let el = document.elementFromPoint(x, y);
   if (el && el.closest(UI_SELECTOR)) return null;
-  while (el && el !== document.body && getComputedStyle(el).display === 'inline') el = el.parentElement;
+  if (el instanceof SVGElement) el = el.closest('svg') ?? el; // HTML in a <foreignObject> is not a shape
+  while (el && el !== document.body && !el.matches(PICTURES) && getComputedStyle(el).display === 'inline') {
+    el = el.parentElement;
+  }
   return !el || el === document.body || el === document.documentElement ? null : el;
 }
 
