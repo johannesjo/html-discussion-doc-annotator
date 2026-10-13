@@ -2,14 +2,13 @@
   "name": "decision-notes",
   "version": "1.0.0",
   "private": true,
-  "description": "Take notes in place in local HTML decision docs; notes are saved live as Markdown next to each doc.",
+  "description": "Chrome extension: notes on any element of a page, saved live as Markdown into a folder you choose.",
   "type": "module",
   "engines": {
     "node": ">=18"
   },
   "scripts": {
-    "start": "node serve.mjs",
-    "test": "node --test"
+    "test": "node --test test/*.test.mjs"
   },
   "devDependencies": {
     "jsdom": "^26.1.0"

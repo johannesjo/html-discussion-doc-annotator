@@ -1,0 +1,18 @@
+{
+  "manifest_version": 3,
+  "name": "Decision notes",
+  "version": "0.1.0",
+  "description": "Notes on any element of a page, saved as Markdown into a folder you choose.",
+  "minimum_chrome_version": "116",
+  "permissions": ["sidePanel", "storage"],
+  "background": { "service_worker": "background.js", "type": "module" },
+  "action": { "default_title": "Decision notes" },
+  "side_panel": { "default_path": "panel.html" },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content/locate.js", "content/store.js", "content/cards.js", "content/main.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}
