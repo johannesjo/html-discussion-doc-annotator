@@ -1,0 +1,17 @@
+{
+  "name": "decision-notes",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Take notes in place in local HTML decision docs; notes are saved live as Markdown next to each doc.",
+  "type": "module",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "start": "node serve.mjs",
+    "test": "node --test"
+  },
+  "devDependencies": {
+    "jsdom": "^26.1.0"
+  }
+}
